@@ -107,3 +107,36 @@ nvidia-smi
 ---
 
 Tu peux bien sûr adapter les versions des modèles d' IA selon tes besoin.
+
+Tu veux ajouter ton IA a ton Home-Assistant ?
+
+Voici la procédure : 
+
+Étape 1 : Récupérer l'IP de ton PC portable
+
+Sur ton ordinateur portable, récupère son adresse IP locale (ex: 192.168.1.25).
+
+Étape 2 : L'ajouter dans HAOS
+
+Dans l'interface de ton Home Assistant, va dans Paramètres ⚙️ -> Appareils et services.
+
+Clique sur le bouton bleu + Ajouter une intégration en bas à droite.
+
+Tape Ollama dans la barre de recherche et sélectionne-le.
+
+Dans la case URL, entre l'adresse IP de ton ordinateur portable suivie du port de Docker :
+[http://192.168.1.25:11434](http://192.168.1.25:11434) (pense à remplacer par la vraie IP de ton PC).
+
+Clique sur Soumettre. HAOS va se connecter à ton Docker et charger automatiquement les modèles que tu as déjà téléchargés (comme Llama ou Mistral).
+
+Étape 3 : Lier l'IA à tes commandes vocales ou textuelles
+
+Pour pouvoir lui parler directement depuis ton interface :
+
+Va dans Paramètres -> Voix et assistants.
+
+Clique sur Home Assistant (l'assistant par défaut).
+
+Dans la section Agent de conversation, remplace "Home Assistant" par Ollama.
+
+C'est tout bon ! Ton IA locale en Docker est connectée. Tu peux ajouter une carte Conversation sur ton tableau de bord pour commencer à discuter avec elle.
