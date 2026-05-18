@@ -110,6 +110,10 @@ Tu peux bien sûr adapter les versions des modèles d' IA selon tes besoin.
 
 Tu veux ajouter ton IA a ton Home-Assistant ?
 
+Dans cette partie nous conseillons d' avoir un au moins un équipement capable de d' envoyer des commande vocale au Home-Assistant.
+
+Ici nous travailleront avec une enceinte connécté google NEST mais n' importe quel autre enceinte mère devrait fonctionner.
+
 Voici la procédure : 
 
 Étape 1 : Récupérer l'IP de ton PC portable
