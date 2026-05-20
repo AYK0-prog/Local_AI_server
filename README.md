@@ -128,7 +128,7 @@ Clique sur le bouton bleu + Ajouter une intégration en bas à droite.
 
 Tape Ollama dans la barre de recherche et sélectionne-le.
 
-Dans la case URL, entre l'adresse IP de ton ordinateur portable suivie du port de Docker :
+Dans la case URL, entre l'adresse IP de ton client suivie du port de Docker :
 [http://192.168.1.25:11434](http://192.168.1.25:11434) (pense à remplacer par la vraie IP de ton PC).
 
 Clique sur Soumettre. HAOS va se connecter à ton Docker et charger automatiquement les modèles que tu as déjà téléchargés (comme Llama ou Mistral).
