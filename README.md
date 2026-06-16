@@ -20,7 +20,7 @@ Dans ce projet on utilisera beacoup de docker c' est le moment d' apprendre a l 
 
 ## ⚙️ Prérequis
 
-* **OS :** Ubuntu Desktop 24.04 LTS (ou version récente)
+* **OS :** linux_mint zara 22.3 (ou version récente)
 * **Hardware recomandé :** GPU NVIDIA ou AMD avec pilotes propriétaires installés.
 * **Logiciels :** Docker, Ollama.
 
