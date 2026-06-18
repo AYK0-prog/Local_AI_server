@@ -1,146 +1,346 @@
-# Local_AI_server
-Local_AI_server pour projet intégratif
+# Serveur IA Local & Détection de Plagiat
 
-# 🚀 Local LLM Server (Ollama + Open WebUI)
+![Python](https://img.shields.io/badge/Python-3.12.3-3776AB?logo=python&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Engine-2496ED?logo=docker&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-Local_LLM-black?logo=ollama)
+![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux_Mint-22.3-87CF3E?logo=linux&logoColor=white)
+![License](https://img.shields.io/badge/Licence-MIT-green)
 
-Ce projet permet de transformer un PC en un serveur d'Intelligence Artificielle local facilement.
-**Pourquoi ?**
-Privé et ultra-rapide, accessible depuis n'importe quel appareil du réseau via une interface Web sécurisée.
-Imagine que ton meilleur amie ravonte tout tes secret a tout le monde pour se faire du fric, tu fais quoi ?
-Beh tu te barre alors pourquoi tu reste avec chat gpt gemini et compagnie alors que tu peux l' avoir en locale chez toi ?
+> Projet SAE204 — BUT Réseaux & Télécommunications, Auxerre  
+> Auteur : **Enzo Maresia**
 
-Dans ce projet on utilisera beacoup de docker c' est le moment d' apprendre a l installer au debut c' est super chiant mais quand c' est fais c' est un vraie bonheur gais moi confiance ca vaut vrai,ent le coup.
-
-## 🛠️ Architecture du Projet
-
-* **Moteur IA :** [Ollama](https://ollama.com/) installé via Docker pour simplifier les chose.
-* **Interface Utilisateur :** [Open WebUI](https://github.com/open-webui/open-webui) orchestré via Docker, offrant une expérience fluide "à la ChatGPT" avec gestion des utilisateurs (Login/MDP) et logs d'historique.
+Infrastructure IA **100 % locale** hébergeant un assistant conversationnel et un pipeline
+de détection de plagiat multi-signaux, sans aucune dépendance à des services cloud externes.
 
 ---
 
-## ⚙️ Prérequis
+## Sommaire
 
-* **OS :** linux_mint zara 22.3 (ou version récente)
-* **Hardware recomandé :** GPU NVIDIA ou AMD avec pilotes propriétaires installés.
-* **Logiciels :** Docker, Ollama.
+- [Aperçu](#aperçu)
+- [Fonctionnalités](#fonctionnalités)
+- [Architecture](#architecture)
+- [Matériel](#matériel)
+- [Prérequis](#prérequis)
+- [Installation](#installation)
+- [Utilisation](#utilisation)
+- [Structure du projet](#structure-du-projet)
+- [Modèles IA](#modèles-ia)
+- [Notes techniques](#notes-techniques)
+- [Licence](#licence)
 
 ---
 
-## 🚀 Installation et Configuration Step-by-Step
+## Aperçu
 
-### 1. Configuration d'Ollama (Serveur Natif)
+Ce projet répond à une problématique concrète du département R&T :
+disposer d'un serveur IA maîtrisé sur le réseau de l'IUT, conforme RGPD,
+sans envoyer de données d'élèves vers des services tiers.
 
-Pour que le serveur Ollama écoute les requêtes du réseau local (et de Docker) plutôt que de rester bloqué sur `localhost`, applique la configuration suivante :
+Il est composé de deux blocs indépendants :
 
-```bash
-# Modifier la configuration du service
-sudo systemctl edit ollama.service
+| Bloc | Description | Technologies |
+|------|-------------|--------------|
+| **IA locale** | Assistant conversationnel type ChatGPT, auto-hébergé | Ollama + OpenWebUI + Docker |
+| **Anti-plagiat** | Pipeline de comparaison de rapports PDF, 4 signaux combinés | Python 3.12 + Flask + Ollama |
 
-```
+---
 
-Ajoute ces lignes dans le fichier :
+## Fonctionnalités
 
-```ini
-[Service]
-Environment="OLLAMA_HOST=0.0.0.0"
+### IA locale
+- Modèles de langage servis en local via **Ollama** (API REST sur `:11434`)
+- Interface web **OpenWebUI** sur le port `3000` (style ChatGPT, multi-comptes)
+- Assistant nommé **Qwen** (modèle `qwen2.5:7b` avec system prompt dédié)
+- Compatible **Home Assistant OS** via l'intégration Ollama native (bonus)
 
-```
+### Détection de plagiat
+- Extraction de texte PDF natif + **OCR** (Tesseract FR/EN) pour les documents scannés
+- **4 signaux indépendants** pondérés pour résister aux contournements classiques :
+  - Lexical — shingling k=5 + `rapidfuzz` **(35 %)**
+  - Sémantique — embeddings multilingues + similarité cosinus **(35 %)**
+  - Images — hash perceptuel **(15 %)**
+  - Verdict IA — `gemma3:4b` via Ollama, JSON structuré **(15 %)**
+- Exclusion automatique des passages de l'énoncé (`--sujet`)
+- **Interface web Flask** avec terminal live (SSE) et export du rapport en PDF
+- Historique des analyses en base SQLite
 
-Recharge et redémarre le service :
+---
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl restart ollama
-
-```
-
-Télécharge le modèle recommandé (optimisé pour 6Go de VRAM) :
-
-```bash
-ollama pull qwen2.5:3b
-
-```
-
-### 2. Ouverture des Ports (Pare-feu Ubuntu)
-
-Indispensable pour permettre à ton client d'accéder à l'interface et à l'API :
-
-```bash
-sudo ufw allow 3000/tcp   # Port d'Open WebUI
-sudo ufw allow 11434/tcp  # Port de l'API Ollama
-sudo ufw reload
+## Architecture
 
 ```
+Réseau privé salle réseaux IUT — 172.17.0.0/24
+              |
+  +-----------+------------------+
+  |         SERVEUR IA           |
+  |   2x Xeon E5-2630 v3         |
+  |   RTX 3060 Ti — 8 Go VRAM    |
+  |   32 Go DDR3                 |
+  |   Linux Mint 22.3 (headless) |
+  |                              |
+  |   [Docker]  OpenWebUI :3000  |
+  |   [Systemd] Ollama    :11434 |
+  |   [Python]  Flask     :5000  |
+  +-----------+------------------+
+              |
+     +--------+--------+
+     |                 |
+  Lenovo            MacBook
+  (client)          (client)
+```
 
-### 3. Déploiement d'Open WebUI (Docker)
+Le pipeline de détection :
 
-Lance l'interface utilisateur en l'exposant sur toutes les interfaces réseau (`0.0.0.0`) pour la rendre accessible à votre MacBook :
+```
+PDF A + PDF B
+     |
+     v
+[1] Extraction PDF → Markdown (PyMuPDF + Tesseract OCR)
+[2] Exclusion du sujet (shingling)
+[3] Détection lexicale (shingling k=5 + rapidfuzz)          → score 35 %
+[4] Détection sémantique (multilingual-e5-base + cosinus)   → score 35 %
+[5] Analyse images (hash perceptuel)                        → score 15 %
+[6] Verdict IA (gemma3:4b via Ollama → JSON)                → score 15 %
+[7] Score final pondéré + niveau de risque
+[8] Rapport PDF (Markdown → HTML → WeasyPrint)
+```
+
+---
+
+## Matériel
+
+| Composant | Détail |
+|-----------|--------|
+| Processeurs | 2× Intel Xeon E5-2630 v3 (32 threads) |
+| GPU | NVIDIA RTX 3060 Ti — 8 Go VRAM |
+| RAM | 32 Go DDR3 |
+| Système | Linux Mint 22.3 — headless |
+| Réseau | Filaire — réseau privé salle réseaux IUT (172.17.0.0/24) |
+
+---
+
+## Prérequis
+
+- Linux (testé sur Linux Mint 22.3 / Ubuntu 22.04+)
+- Python 3.12+
+- Docker Engine (sans Docker Desktop)
+- Drivers NVIDIA + `nvidia-container-toolkit` (pour l'accélération GPU)
+- Tesseract OCR
 
 ```bash
-docker run -d -p 0.0.0.0:3000:8080 \
+sudo apt update
+sudo apt install -y tesseract-ocr tesseract-ocr-fra tesseract-ocr-eng \
+                   libpango-1.0-0 libpangoft2-1.0-0 \
+                   python3 python3-venv python3-pip git curl
+```
+
+---
+
+## Installation
+
+### 1 — Cloner le dépôt
+
+```bash
+git clone https://github.com/AYK0-prog/Local_AI_server.git
+cd Local_AI_server
+```
+
+### 2 — Installer Docker Engine
+
+```bash
+# Via le paquet .deb (recommandé sur Linux Mint)
+# Télécharger depuis https://docs.docker.com/engine/install/ubuntu/
+sudo usermod -aG docker $USER   # puis se reconnecter
+```
+
+### 3 — Installer et configurer Ollama
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Exposer Ollama sur le réseau local
+sudo systemctl edit ollama
+# Ajouter :
+# [Service]
+# Environment="OLLAMA_HOST=0.0.0.0:11434"
+
+sudo systemctl daemon-reload && sudo systemctl restart ollama
+```
+
+### 4 — Télécharger les modèles
+
+```bash
+ollama pull gemma3:4b        # verdict IA (pipeline)
+ollama pull qwen2.5:7b       # assistant nommé (OpenWebUI)
+ollama pull llama3.2:3b      # modèle léger
+ollama pull llama3.1:8b      # second avis IA
+ollama pull llava:7b         # vision (installé, désactivé — voir Notes)
+```
+
+### 5 — Déployer OpenWebUI
+
+```bash
+docker run -d --name openwebui -p 3000:8080 \
   --add-host=host.docker.internal:host-gateway \
-  -v open-webui:/app/backend/data \
-  --name open-webui \
+  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+  -v openwebui:/app/backend/data \
+  --restart unless-stopped \
   ghcr.io/open-webui/open-webui:main
-
 ```
 
----
+> Ouvrir `http://localhost:3000` — le premier compte créé devient administrateur.
 
-## 💻 Utilisation
-
-1. Récupére l'IP locale du serveur Linux (ex: `192.168.1.XX`) avec la commande `ip a`.
-2. Depuis en n'allant sur ta seconde machine, ouvre ton navigateur à l'adresse : `http://xxx.xxx.x.XX:3000`.
-3. Le premier compte créé devient automatiquement le compte **Administrateur**. Tu pourras ensuite créer des accès spécifiques (Login/MDP) pour d'autres utilisateurs.
-
----
-
-## 📊 Monitoring des performances
-
-Pour vérifier que l'IA sollicite bien la mémoire de ta carte graphique NVIDIA, ouvre un terminal sur le serveur et tapez :
+### 6 — Installer le pipeline anti-plagiat
 
 ```bash
-nvidia-smi
+cd SAE204_scripts
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
+### 7 — Installer l'application Flask
+
+```bash
+cd ../scripts
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Créer les liens symboliques vers le pipeline
+ln -sfn ../SAE204_scripts/modules ./modules
+ln -sfn ../SAE204_scripts/main.py ./main.py
 ```
 
 ---
 
-Tu peux bien sûr adapter les versions des modèles d' IA selon tes besoin.
+## Utilisation
 
-Tu veux ajouter ton IA a ton Home-Assistant ?
+### Pipeline CLI
 
-Dans cette partie nous conseillons d' avoir un au moins un équipement capable de d' envoyer des commande vocale au Home-Assistant.
+```bash
+cd SAE204_scripts
+source venv/bin/activate
 
-Ici nous travailleront avec une enceinte connécté google NEST mais n' importe quel autre enceinte mère devrait fonctionner.
+# Analyse standard
+python3 main.py --a rapport_a.pdf --b rapport_b.pdf --output resultats/
 
-Voici la procédure : 
+# Avec exclusion de l'énoncé
+python3 main.py --a rapport_a.pdf --b rapport_b.pdf --sujet sujet.pdf --output resultats/
 
-Étape 1 : Récupérer l'IP de ton PC portable
+# Avec second avis IA local (llama3.1:8b)
+python3 main.py --a rapport_a.pdf --b rapport_b.pdf --external --provider ollama
+```
 
-Sur ton ordinateur portable, récupère son adresse IP locale (ex: 192.168.1.25).
+### Application web Flask
 
-Étape 2 : L'ajouter dans HAOS
+```bash
+cd scripts
+source venv/bin/activate
+pkill -f "python app.py" 2>/dev/null   # libère le port si nécessaire
+python app.py
+```
 
-Dans l'interface de ton Home Assistant, va dans Paramètres ⚙️ -> Appareils et services.
+Ouvrir `http://localhost:5000` — identifiants par défaut : `admin` / `admin`
 
-Clique sur le bouton bleu + Ajouter une intégration en bas à droite.
+### Niveaux de risque
 
-Tape Ollama dans la barre de recherche et sélectionne-le.
+| Niveau | Score |
+|--------|-------|
+| 🟢 Faible | < 40 % |
+| 🟠 Modéré | 40 % – 69 % |
+| 🔴 Élevé | ≥ 70 % |
 
-Dans la case URL, entre l'adresse IP de ton client suivie du port de Docker :
-[http://192.168.1.25:11434](http://192.168.1.25:11434) (pense à remplacer par la vraie IP de ton PC).
+### Ports et accès
 
-Clique sur Soumettre. HAOS va se connecter à ton Docker et charger automatiquement les modèles que tu as déjà téléchargés (comme Llama ou Mistral).
+| Service | URL | Identifiants |
+|---------|-----|-------------|
+| OpenWebUI | `http://localhost:3000` | compte créé à l'installation |
+| Flask (plagiat) | `http://localhost:5000` | admin / admin |
+| Ollama API | `http://localhost:11434` | accès libre |
 
-Étape 3 : Lier l'IA à tes commandes vocales ou textuelles
+---
 
-Pour pouvoir lui parler directement depuis ton interface :
+## Structure du projet
 
-Va dans Paramètres -> Voix et assistants.
+```
+Local_AI_server/
+├── SAE204_scripts/          # Pipeline de détection (Phase 1)
+│   ├── main.py              # Point d'entrée — fonction analyze()
+│   ├── modules/             # Modules par signal (lexical, sémantique, images, IA)
+│   ├── requirements.txt
+│   └── venv/
+│
+├── scripts/                 # Application web Flask (Phase 2)
+│   ├── app.py               # Serveur Flask (~480 lignes)
+│   ├── templates/           # 8 vues HTML (Jinja2)
+│   ├── external_verify.py   # Module second avis IA
+│   ├── modules -> ../SAE204_scripts/modules   # lien symbolique
+│   ├── main.py  -> ../SAE204_scripts/main.py  # lien symbolique
+│   ├── requirements.txt
+│   └── venv/
+│
+└── README.md
+```
 
-Clique sur Home Assistant (l'assistant par défaut).
+La base SQLite des analyses est stockée dans `~/.plagiat_app/plagiat.db`.
 
-Dans la section Agent de conversation, remplace "Home Assistant" par Ollama.
+---
 
-C'est tout bon ! Ton IA locale en Docker est connectée. Tu peux ajouter une carte Conversation sur ton tableau de bord pour commencer à discuter avec elle.
+## Modèles IA
+
+| Modèle | Type | Usage | Taille |
+|--------|------|-------|--------|
+| `gemma3:4b` | LLM | Verdict IA — étape 6 du pipeline | ~3 Go |
+| `qwen2.5:7b` | LLM | Assistant Qwen dans OpenWebUI | ~4,7 Go |
+| `llama3.2:3b` | LLM | Modèle léger / tests | ~2 Go |
+| `llama3.1:8b` | LLM | Second avis IA (provider local) | ~4,7 Go |
+| `llava:7b` | Vision | Installé — **désactivé** (contrainte VRAM) | ~4,7 Go |
+| `multilingual-e5-base` | Embeddings | Similarité sémantique FR/EN — forcé CPU | ~1,1 Go |
+
+---
+
+## Notes techniques
+
+### Optimisation VRAM (8 Go)
+
+La RTX 3060 Ti ne peut pas charger simultanément un modèle texte et LLaVA.
+Deux ajustements ont été appliqués pour stabiliser le pipeline :
+
+```python
+# sentence_transformers forcé sur CPU (libère ~2,3 Go VRAM)
+model = SentenceTransformer("intfloat/multilingual-e5-base", device="cpu")
+
+# LLaVA désactivé (évite la boucle llama-server à 1100 % CPU)
+vision_model = None
+```
+
+### Terminal live — SSE
+
+L'interface Flask intercepte la sortie standard du pipeline (`sys.stdout`)
+et pousse chaque ligne vers le navigateur via **Server-Sent Events**.
+Si le terminal affiche "Mode Démo", vérifier les liens symboliques :
+
+```bash
+ls -l scripts/modules scripts/main.py
+```
+
+### Solutions rejetées
+
+| Solution | Raison |
+|----------|--------|
+| LM Studio | Xeon E5-2630 v3 sans AVX2 (requis pour l'inférence CPU) |
+| LiteLLM | Liaison Ollama non fonctionnelle lors des tests d'intégration |
+| HuggingFace externe | Clé API invalidée + principe "local d'abord" / RGPD |
+
+---
+
+## Licence
+
+Ce projet est distribué sous licence **MIT**.  
+Voir le fichier [LICENSE](LICENSE) pour les détails.
+
+---
+
+*BUT Réseaux & Télécommunications — IUT d'Auxerre — Juin 2026*
