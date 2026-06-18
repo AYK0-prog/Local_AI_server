@@ -1,0 +1,34 @@
+Tout est verrouillé. Une seule conséquence sur l'archi : comme **seul l'admin est sur OpenWebUI**, le décompte de tokens et les quotas ne peuvent pas vivre dans OpenWebUI (qui ne connaîtrait qu'une clé). Ils vivent donc **dans l'app**.
+
+**Archi finale**
+1. **OpenWebUI + Ollama** : interface admin pour gérer/tester les modèles. Zéro code.
+2. **App Flask (Python)** : authentifie ses propres users (prof + 2 étudiants), parle **directement à Ollama** (port 11434). Ollama renvoie le nombre de tokens (`prompt_eval_count` + `eval_count`) dans chaque réponse → l'app les cumule par user, applique le quota et le dossier 10 Go. La « clé API par personne » = clé stockée en base, propre à l'app. Tout reste local.
+
+**Méthodo plagiat (mon choix) — un score multi-signaux, parce qu'un seul indicateur est fragile et que le prof a besoin d'un verdict *explicable***, pas d'un chiffre opaque. Pipeline par paire (étudiant A vs B) :
+
+1. **PDF → Markdown** : extraction texte natif via PyMuPDF ; si une page n'a (quasi) pas de texte → scan → OCR Tesseract en repli. (OCR fiable sur imprimé, médiocre sur manuscrit — à signaler en soutenance.)
+2. **Analyse du sujet** : on convertit le sujet de TP aussi, et on **retire des rapports les passages qui matchent le sujet** (sinon le texte commun de la consigne fausse le plagiat entre étudiants).
+3. **Texte — 2 couches :**
+   - *Lexical* : découpage en n-grammes (shingling) + taux de recouvrement (containment) → le « % » classique, et alignement phrase-à-phrase (rapidfuzz) pour surligner *quels* passages se recoupent.
+   - *Sémantique* : embeddings multilingues (sentence-transformers, FR+EN) + cosinus → attrape la paraphrase/reformulation que le lexical rate.
+4. **Images (modèle vision, comme demandé)** : extraction des images, description par un modèle vision local via Ollama (LLaVA 7B ou Qwen2.5-VL 7B), puis comparaison des descriptions (embeddings) pour repérer les figures qui montrent la même chose. (+ option : hash perceptuel `imagehash` pour détecter une figure copiée-collée à coût nul.)
+5. **Verdict IA (le « fact-check ») :** on donne au LLM local les passages suspects A/B + les images qui matchent, et on lui demande un jugement structuré (plagiat / paraphrase / coïncidence + justification + confiance).
+6. **Scoring :** *note détaillée* = % par composante (lexical, sémantique, images) avec les extraits listés ; *note générale* = combinaison pondérée → **probabilité de plagiat entre A et B**. Rapport **markdown** avec toutes les étapes → export **PDF**.
+
+**Stack (toute locale, OK sur 8 Go VRAM en 7B Q4, modèles lancés séquentiellement)**
+- App : Flask + SQLite + Jinja2
+- PDF : PyMuPDF (`fitz`) + Tesseract (OCR repli)
+- Texte : `datasketch`/shingling, `rapidfuzz`, `sentence-transformers` (`multilingual-e5-base`)
+- Images : PyMuPDF + `imagehash` + vision Ollama
+- LLM verdict : `qwen2.5:7b` ou `llama3.1:8b` via Ollama
+- Rapport PDF : markdown → HTML → PDF (WeasyPrint)
+
+**Plan**
+- **Phase 0** : OpenWebUI/Ollama, compte admin, pull des 3 modèles (texte 7-8B, vision 7B, embeddings). Sans code.
+- **Phase 1** : le **script plagiat en CLI** (testable seul) : `analyze(rapportA, rapportB, sujet) → rapport.md + scores`.
+- **Phase 2** : l'**app Flask** autour : base users/clés/quotas, page admin (créer user → dossier 10 Go + clé), login, upload, affichage rapport, export PDF, comptage tokens.
+- **Phase 3** : jeu de démo (1 sujet + 2 rapports dont un avec passages/figures copiés) + points pour la soutenance.
+
+Deux choses avant que je code :
+- Par quoi je commence : **le script (Phase 1)**, **l'app (Phase 2)**, ou un **schéma d'archi** pour ta soutenance d'abord ?
+- Tu as un vrai sujet de TP + 2 rapports PDF pour tester, ou je te génère un jeu de test factice ?
